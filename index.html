@@ -2,31 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Gyro Pacman - Fixed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Gyro Pacman - Portrait</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        
+        /* Main UI Overlay */
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
             justify-content: center; align-items: center; color: #ffeb3b; z-index: 10;
             text-align: center; padding: 20px;
         }
+
+        /* Landscape Blocker */
+        #landscape-blocker {
+            display: none; /* Hidden by default */
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 20; color: white;
+            justify-content: center; align-items: center; text-align: center;
+            flex-direction: column;
+        }
+
         button {
             padding: 15px 30px; font-size: 1.2rem; background: #ffeb3b; border: none;
             cursor: pointer; font-weight: bold; color: #000; border-radius: 5px; margin-top: 20px;
         }
         #score-board {
-            position: absolute; top: 10px; left: 10px; color: white;
-            font-size: 20px; z-index: 5; pointer-events: none;
+            position: absolute; top: 15px; left: 15px; color: white;
+            font-size: 24px; z-index: 5; pointer-events: none; font-weight: bold;
         }
         #status-msg {
-            position: absolute; top: 50px; left: 10px; color: #00ff00;
+            position: absolute; top: 60px; left: 15px; color: #00ff00;
             font-size: 16px; z-index: 5; pointer-events: none; font-weight: bold;
         }
         #debug {
-            position: absolute; bottom: 10px; left: 10px; color: #aaa;
-            font-size: 12px; z-index: 5; pointer-events: none;
+            position: absolute; bottom: 15px; left: 0; width: 100%; color: #aaa;
+            font-size: 12px; z-index: 5; pointer-events: none; text-align: center;
         }
     </style>
 </head>
@@ -34,23 +46,31 @@
 
 <div id="score-board">Score: 0</div>
 <div id="status-msg"></div>
-<div id="debug">Tilt phone to move | Desktop: Arrow Keys</div>
+<div id="debug">Hold Vertical | Tilt to Move</div>
 
 <div id="overlay">
-    <h1>3D Gyro Pacman</h1>
-    <p>Tilt your phone to move.</p>
-    <p>Eat pellets. Avoid red ghosts.</p>
-    <button id="start-btn">START GAME</button>
+    <h1>Pacman 3D</h1>
+    <p>PORTRAIT MODE ONLY</p>
+    <p style="font-size: 0.9em; color: #fff;">1. Hold phone vertically.<br>2. Tilt forward/back to move Up/Down.<br>3. Tilt left/right to move Left/Right.</p>
+    <button id="start-btn">TAP TO START</button>
+</div>
+
+<div id="landscape-blocker">
+    <h1>Rotate Phone</h1>
+    <p>This game only works in Portrait mode.</p>
+    <div style="font-size: 30px;">↻</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-    // --- GAME CONSTANTS ---
+    // --- CONFIG ---
     const WALL_SIZE = 10;
-    const SPEED = 0.5;
+    const SPEED = 0.6;
+    const PACMAN_HEIGHT = 4;
+    const PELLET_HEIGHT = 0;
     
-    // --- GLOBAL VARIABLES ---
+    // --- GLOBALS ---
     let scene, camera, renderer;
     let pacman, ghosts = [], pellets = [], walls = [];
     let score = 0;
@@ -65,15 +85,11 @@
     let audioCtx;
     let bgmInterval;
 
-    // Map Legend: 
-    // 1 = Wall
-    // 0 = Path + Pellet
-    // 2 = Ghost Spawn (Top Corners)
-    // 3 = Pacman Spawn (Bottom Center)
-    // 9 = Empty Path (No pellet, good for spawn zones)
+    // 15x15 Grid
+    // 1=Wall, 0=Pellet, 2=Ghost, 3=Pacman, 9=Empty
     const mapDesign = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,2,0,0,0,0,0,1,0,0,0,0,0,2,1], // Ghosts at [1,1] and [1,13]
+        [1,2,0,0,0,0,0,1,0,0,0,0,0,2,1],
         [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
         [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
         [1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
@@ -81,42 +97,38 @@
         [1,1,1,0,1,0,1,0,1,0,1,0,1,1,1],
         [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
         [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-        [1,0,0,0,0,0,0,3,0,0,0,0,0,0,1], // Pacman at [9,7]
+        [1,0,0,0,0,0,0,3,0,0,0,0,0,0,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
     function init() {
+        // Scene
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x050505);
 
-        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Camera starts high but will snap to Pacman
-        camera.position.set(0, 100, 100); 
-
+        // Camera - Setup for Portrait (High FOV to see width)
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // Renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
-        
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(50, 100, 50);
+        dirLight.position.set(0, 100, 50);
         scene.add(dirLight);
 
         buildLevel();
-
-        window.addEventListener('resize', onWindowResize, false);
         
-        // Desktop Fallback
-        window.addEventListener('keydown', (e) => {
-            if(!isPlaying) return;
-            const speed = 15; 
-            if(e.key === 'ArrowUp') handleMotion(0, -speed);
-            if(e.key === 'ArrowDown') handleMotion(0, speed);
-            if(e.key === 'ArrowLeft') handleMotion(speed, 0);
-            if(e.key === 'ArrowRight') handleMotion(-speed, 0);
-        });
+        // Listeners
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('keydown', handleDesktopInput); // Debugging
+        
+        // Check orientation immediately
+        checkOrientation();
 
         animate();
     }
@@ -125,16 +137,15 @@
         const wallGeo = new THREE.BoxGeometry(WALL_SIZE, WALL_SIZE, WALL_SIZE);
         const wallMat = new THREE.MeshLambertMaterial({ color: 0x1919A6 });
         
-        const pelletGeo = new THREE.SphereGeometry(1.5, 8, 8);
+        const pelletGeo = new THREE.SphereGeometry(2, 8, 8); // Bigger pellets
         const pelletMat = new THREE.MeshBasicMaterial({ color: 0xffb8ae });
 
         const ghostGeo = new THREE.CylinderGeometry(3, 3, 8, 16);
         const ghostMat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
 
         const pacGeo = new THREE.SphereGeometry(4, 32, 32);
-        const pacMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b, transparent: true, opacity: 1.0 });
+        const pacMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b });
 
-        // Calculate offsets to center the map
         const offsetX = (mapDesign[0].length * WALL_SIZE) / 2;
         const offsetZ = (mapDesign.length * WALL_SIZE) / 2;
 
@@ -149,30 +160,29 @@
                     wall.position.set(posX, WALL_SIZE/2, posZ);
                     scene.add(wall);
                     walls.push(new THREE.Box3().setFromObject(wall));
-                } 
-                else if (type === 0 || type === 2 || type === 3) {
-                    // Place Pellet (unless it's empty space 9)
-                    if(type === 0) {
+                } else if (type !== 9) {
+                    
+                    // Pellet (0, 2, 3 all have pellets underneath)
+                    if (type === 0 || type === 2 || type === 3) {
                         const pellet = new THREE.Mesh(pelletGeo, pelletMat);
-                        pellet.position.set(posX, 0, posZ);
+                        pellet.position.set(posX, PELLET_HEIGHT, posZ);
                         scene.add(pellet);
                         pellets.push(pellet);
                     }
 
-                    // Place Ghost
+                    // Ghost
                     if (type === 2) {
                         const ghost = new THREE.Mesh(ghostGeo, ghostMat);
                         ghost.position.set(posX, 4, posZ);
-                        // Randomize initial direction
-                        ghost.userData = { dir: new THREE.Vector3(1,0,0), speed: 0.18 }; // Slightly slower than player
+                        ghost.userData = { dir: new THREE.Vector3(1,0,0), speed: 0.2 };
                         scene.add(ghost);
                         ghosts.push(ghost);
                     }
 
-                    // Place Pacman
+                    // Pacman
                     if (type === 3) {
                         pacman = new THREE.Mesh(pacGeo, pacMat);
-                        pacman.position.set(posX, 4, posZ);
+                        pacman.position.set(posX, PACMAN_HEIGHT, posZ);
                         scene.add(pacman);
                     }
                 }
@@ -180,29 +190,48 @@
         }
     }
 
-    // --- GAME LOGIC ---
+    // --- LOGIC ---
 
     function handleOrientation(event) {
         if (!isPlaying) return;
-        let gamma = event.gamma; // Left/Right
-        let beta = event.beta;   // Front/Back
         
-        // Calibration: Hold phone at 45 deg angle is "Neutral"
-        beta = beta - 45; 
-
-        handleMotion(gamma, beta);
-    }
-
-    function handleMotion(gamma, beta) {
-        // Deadzone
-        if (Math.abs(gamma) < 5) gamma = 0;
-        if (Math.abs(beta) < 5) beta = 0;
-
-        velocity.x = gamma * 0.01; 
-        velocity.z = beta * 0.01; 
+        // Portrait Mode:
+        // Gamma (Left/Right tilt) moves X
+        // Beta (Front/Back tilt) moves Z
         
+        let gamma = event.gamma; 
+        let beta = event.beta;   
+        
+        // Neutral holding position for playing:
+        // Phone held at ~50 degrees from flat.
+        // Tilted Away (<50) -> Move Up (Z-)
+        // Tilted Toward (>50) -> Move Down (Z+)
+        const neutralBeta = 50; 
+        
+        let xInput = gamma; 
+        let zInput = beta - neutralBeta;
+
+        // Deadzones
+        if (Math.abs(xInput) < 5) xInput = 0;
+        if (Math.abs(zInput) < 5) zInput = 0;
+
+        velocity.x = xInput * 0.02; 
+        velocity.z = zInput * 0.02; 
+        
+        // Clamp speed
         velocity.x = Math.max(Math.min(velocity.x, SPEED), -SPEED);
         velocity.z = Math.max(Math.min(velocity.z, SPEED), -SPEED);
+    }
+
+    // Desktop Debugging
+    function handleDesktopInput(e) {
+        if(!isPlaying) return;
+        const force = 0.6;
+        if(e.key === 'ArrowUp') { velocity.z = -force; velocity.x = 0; }
+        if(e.key === 'ArrowDown') { velocity.z = force; velocity.x = 0; }
+        if(e.key === 'ArrowLeft') { velocity.x = -force; velocity.z = 0; }
+        if(e.key === 'ArrowRight') { velocity.x = force; velocity.z = 0; }
+        if(e.key === ' ') { velocity.x = 0; velocity.z = 0; } // Stop
     }
 
     function checkCollision(position, radius) {
@@ -212,9 +241,7 @@
         playerBox.set(min, max);
 
         for (let wallBox of walls) {
-            if (playerBox.intersectsBox(wallBox)) {
-                return true;
-            }
+            if (playerBox.intersectsBox(wallBox)) return true;
         }
         return false;
     }
@@ -223,27 +250,31 @@
         requestAnimationFrame(animate);
 
         if (isPlaying && pacman) {
+            
             // 1. Move Pacman
+            // Try X
             let nextPos = pacman.position.clone();
             nextPos.x += velocity.x;
             if (!checkCollision(nextPos, 3.5)) pacman.position.x = nextPos.x;
 
+            // Try Z
             nextPos = pacman.position.clone();
             nextPos.z += velocity.z;
             if (!checkCollision(nextPos, 3.5)) pacman.position.z = nextPos.z;
-            
-            // Rotation
-            if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
-                pacman.rotation.y = Math.atan2(-velocity.x, -velocity.z);
-                pacman.rotation.z -= 0.1; 
-            }
 
-            // 2. Move Ghosts
+            // NO AUTO ROTATION: We simply don't rotate the mesh here.
+            
+            // 2. Camera Follow (Top-down view)
+            // Camera stays behind (Z) and above (Y)
+            camera.position.x = pacman.position.x;
+            camera.position.z = pacman.position.z + 50; 
+            camera.position.y = 80; 
+            camera.lookAt(pacman.position.x, 0, pacman.position.z - 10); // Look slightly ahead
+
+            // 3. Move Ghosts
             ghosts.forEach(ghost => {
                 let gNext = ghost.position.clone().add(ghost.userData.dir.clone().multiplyScalar(ghost.userData.speed));
-                
                 if (checkCollision(gNext, 3)) {
-                    // Change direction on wall hit
                     const dirs = [
                         new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0),
                         new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)
@@ -252,18 +283,18 @@
                 } else {
                     ghost.position.copy(gNext);
                 }
-
-                // Check Death
+                
+                // Ghost Hit
                 if (ghost.position.distanceTo(pacman.position) < 6) {
-                    if (!isInvincible) {
-                        gameOver();
-                    }
+                    if (!isInvincible) gameOver();
                 }
             });
 
-            // 3. Eat Pellets
+            // 4. Eat Pellets (FIXED COLLISION LOGIC)
             for (let i = pellets.length - 1; i >= 0; i--) {
-                if (pacman.position.distanceTo(pellets[i].position) < 4) {
+                // Distance includes Y difference (4 units). 
+                // We increase threshold to 8 to account for this vertical gap comfortably.
+                if (pacman.position.distanceTo(pellets[i].position) < 8) {
                     scene.remove(pellets[i]);
                     pellets.splice(i, 1);
                     score += 10;
@@ -271,26 +302,31 @@
                     playWakaSound();
                 }
             }
-            
+
             if (pellets.length === 0) {
-                alert("YOU WIN!");
-                isPlaying = false;
+                alert("VICTORY!");
                 window.location.reload();
             }
-
-            // Camera Logic
-            camera.position.x = pacman.position.x;
-            camera.position.z = pacman.position.z + 60; 
-            camera.lookAt(pacman.position);
         }
 
         renderer.render(scene, camera);
+    }
+
+    function checkOrientation() {
+        const blocker = document.getElementById('landscape-blocker');
+        if (window.innerWidth > window.innerHeight) {
+            blocker.style.display = 'flex';
+            if(isPlaying) stopMusic();
+        } else {
+            blocker.style.display = 'none';
+        }
     }
 
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        checkOrientation();
     }
 
     function gameOver() {
@@ -301,7 +337,7 @@
         window.location.reload();
     }
 
-    // --- AUDIO SYSTEM ---
+    // --- AUDIO ---
     function initAudio() {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
@@ -312,8 +348,8 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
         osc.connect(gain);
@@ -339,31 +375,33 @@
 
     function startMusic() {
         if (!audioCtx) initAudio();
+        if (bgmInterval) clearInterval(bgmInterval);
+        
         let note = 0;
-        const baseFreq = 100;
-        const pattern = [1, 1, 1.5, 1.2]; 
+        const baseFreq = 120;
+        const pattern = [1, 1, 1.25, 1.5, 1.25, 1]; 
 
         bgmInterval = setInterval(() => {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'square';
-            let freq = baseFreq * pattern[note % 4];
+            let freq = baseFreq * pattern[note % pattern.length];
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.4);
+            osc.stop(audioCtx.currentTime + 0.2);
             note++;
-        }, 500);
+        }, 250);
     }
 
     function stopMusic() {
         clearInterval(bgmInterval);
     }
 
-    // --- GAME START / PERMISSION ---
+    // --- STARTUP ---
     const startBtn = document.getElementById('start-btn');
     startBtn.addEventListener('click', async () => {
         initAudio();
@@ -373,10 +411,9 @@
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
                 if (response === 'granted') startGame();
-                else alert('Permission needed to tilt-control!');
+                else alert('Gyro permission is required to play!');
             } catch (e) {
-                console.error(e);
-                alert('Error requesting sensor permission');
+                alert('Error with Gyro permission');
             }
         } else {
             startGame();
@@ -384,22 +421,23 @@
     });
 
     function startGame() {
+        if(window.innerWidth > window.innerHeight) {
+            alert("Please rotate to Portrait mode first.");
+            return;
+        }
+
         document.getElementById('overlay').style.display = 'none';
         isPlaying = true;
         
-        // 1. Activate Invincibility
+        // Invincibility
         isInvincible = true;
         const statusMsg = document.getElementById('status-msg');
         statusMsg.innerText = "SAFE MODE (3s)";
         
-        // Blink visual
         blinkInterval = setInterval(() => {
-            if (pacman) {
-                pacman.material.opacity = pacman.material.opacity === 1 ? 0.3 : 1;
-            }
+            if (pacman) pacman.material.opacity = pacman.material.opacity === 1 ? 0.3 : 1;
         }, 200);
 
-        // Turn off invincibility after 3 seconds
         setTimeout(() => {
             isInvincible = false;
             clearInterval(blinkInterval);
