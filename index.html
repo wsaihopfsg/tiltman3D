@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Gyro Pacman</title>
+    <title>3D Gyro Pacman - Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
         #overlay {
@@ -20,6 +20,10 @@
             position: absolute; top: 10px; left: 10px; color: white;
             font-size: 20px; z-index: 5; pointer-events: none;
         }
+        #status-msg {
+            position: absolute; top: 50px; left: 10px; color: #00ff00;
+            font-size: 16px; z-index: 5; pointer-events: none; font-weight: bold;
+        }
         #debug {
             position: absolute; bottom: 10px; left: 10px; color: #aaa;
             font-size: 12px; z-index: 5; pointer-events: none;
@@ -29,6 +33,7 @@
 <body>
 
 <div id="score-board">Score: 0</div>
+<div id="status-msg"></div>
 <div id="debug">Tilt phone to move | Desktop: Arrow Keys</div>
 
 <div id="overlay">
@@ -44,7 +49,6 @@
     // --- GAME CONSTANTS ---
     const WALL_SIZE = 10;
     const SPEED = 0.5;
-    const MAP_SIZE = 15;
     
     // --- GLOBAL VARIABLES ---
     let scene, camera, renderer;
@@ -53,43 +57,46 @@
     let isPlaying = false;
     let velocity = { x: 0, z: 0 };
     
+    // Safety Invincibility
+    let isInvincible = false;
+    let blinkInterval;
+    
     // Audio Context
     let audioCtx;
     let bgmInterval;
 
-    // Simple Map Generation (1 = Wall, 0 = Path, 2 = Ghost Start)
-    // 15x15 Grid
+    // Map Legend: 
+    // 1 = Wall
+    // 0 = Path + Pellet
+    // 2 = Ghost Spawn (Top Corners)
+    // 3 = Pacman Spawn (Bottom Center)
+    // 9 = Empty Path (No pellet, good for spawn zones)
     const mapDesign = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+        [1,2,0,0,0,0,0,1,0,0,0,0,0,2,1], // Ghosts at [1,1] and [1,13]
         [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
         [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
         [1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
-        [1,0,0,0,0,0,0,2,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,9,0,0,0,0,0,0,1],
         [1,1,1,0,1,0,1,0,1,0,1,0,1,1,1],
         [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
         [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,3,0,0,0,0,0,0,1], // Pacman at [9,7]
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
-    // --- INITIALIZATION ---
     function init() {
-        // Scene Setup
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
-        // Camera (High angle perspective)
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 120, 80);
-        camera.lookAt(0, 0, 0);
+        // Camera starts high but will snap to Pacman
+        camera.position.set(0, 100, 100); 
 
-        // Renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
         
@@ -97,29 +104,26 @@
         dirLight.position.set(50, 100, 50);
         scene.add(dirLight);
 
-        // Build Level
         buildLevel();
 
-        // Event Listeners
         window.addEventListener('resize', onWindowResize, false);
         
-        // Keyboard fallback for desktop testing
+        // Desktop Fallback
         window.addEventListener('keydown', (e) => {
             if(!isPlaying) return;
-            const speed = 15; // Simulated tilt
+            const speed = 15; 
             if(e.key === 'ArrowUp') handleMotion(0, -speed);
             if(e.key === 'ArrowDown') handleMotion(0, speed);
             if(e.key === 'ArrowLeft') handleMotion(speed, 0);
             if(e.key === 'ArrowRight') handleMotion(-speed, 0);
         });
 
-        // Loop
         animate();
     }
 
     function buildLevel() {
         const wallGeo = new THREE.BoxGeometry(WALL_SIZE, WALL_SIZE, WALL_SIZE);
-        const wallMat = new THREE.MeshLambertMaterial({ color: 0x1919A6 }); // Arcade Blue
+        const wallMat = new THREE.MeshLambertMaterial({ color: 0x1919A6 });
         
         const pelletGeo = new THREE.SphereGeometry(1.5, 8, 8);
         const pelletMat = new THREE.MeshBasicMaterial({ color: 0xffb8ae });
@@ -127,7 +131,10 @@
         const ghostGeo = new THREE.CylinderGeometry(3, 3, 8, 16);
         const ghostMat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
 
-        // Center the map
+        const pacGeo = new THREE.SphereGeometry(4, 32, 32);
+        const pacMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b, transparent: true, opacity: 1.0 });
+
+        // Calculate offsets to center the map
         const offsetX = (mapDesign[0].length * WALL_SIZE) / 2;
         const offsetZ = (mapDesign.length * WALL_SIZE) / 2;
 
@@ -137,53 +144,50 @@
                 const posX = (x * WALL_SIZE) - offsetX;
                 const posZ = (z * WALL_SIZE) - offsetZ;
 
-                if (type === 1) {
-                    // Wall
+                if (type === 1) { // Wall
                     const wall = new THREE.Mesh(wallGeo, wallMat);
                     wall.position.set(posX, WALL_SIZE/2, posZ);
                     scene.add(wall);
                     walls.push(new THREE.Box3().setFromObject(wall));
-                } else if (type === 0 || type === 2) {
-                    // Pellet
-                    const pellet = new THREE.Mesh(pelletGeo, pelletMat);
-                    pellet.position.set(posX, 0, posZ);
-                    scene.add(pellet);
-                    pellets.push(pellet);
-                    
+                } 
+                else if (type === 0 || type === 2 || type === 3) {
+                    // Place Pellet (unless it's empty space 9)
+                    if(type === 0) {
+                        const pellet = new THREE.Mesh(pelletGeo, pelletMat);
+                        pellet.position.set(posX, 0, posZ);
+                        scene.add(pellet);
+                        pellets.push(pellet);
+                    }
+
+                    // Place Ghost
                     if (type === 2) {
-                        // Ghost
                         const ghost = new THREE.Mesh(ghostGeo, ghostMat);
                         ghost.position.set(posX, 4, posZ);
-                        ghost.userData = { dir: new THREE.Vector3(1,0,0), speed: 0.2 };
+                        // Randomize initial direction
+                        ghost.userData = { dir: new THREE.Vector3(1,0,0), speed: 0.18 }; // Slightly slower than player
                         scene.add(ghost);
                         ghosts.push(ghost);
+                    }
+
+                    // Place Pacman
+                    if (type === 3) {
+                        pacman = new THREE.Mesh(pacGeo, pacMat);
+                        pacman.position.set(posX, 4, posZ);
+                        scene.add(pacman);
                     }
                 }
             }
         }
-
-        // Create Pacman
-        const pacGeo = new THREE.SphereGeometry(4, 32, 32);
-        const pacMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b });
-        pacman = new THREE.Mesh(pacGeo, pacMat);
-        pacman.position.set(0, 4, 0); // Start center (ish)
-        scene.add(pacman);
     }
 
     // --- GAME LOGIC ---
 
-    // Handle Gyro Data
-    // Gamma: Left/Right (-90 to 90)
-    // Beta: Front/Back (-180 to 180)
     function handleOrientation(event) {
         if (!isPlaying) return;
-        
-        // Constrain values to avoid extreme speeds
         let gamma = event.gamma; // Left/Right
         let beta = event.beta;   // Front/Back
         
-        // Normalize basic orientation for typical holding position (tilted up 45 deg)
-        // Adjust beta so "flat" relative to user view is neutral
+        // Calibration: Hold phone at 45 deg angle is "Neutral"
         beta = beta - 45; 
 
         handleMotion(gamma, beta);
@@ -194,17 +198,14 @@
         if (Math.abs(gamma) < 5) gamma = 0;
         if (Math.abs(beta) < 5) beta = 0;
 
-        // Calculate velocity (x is left/right, z is up/down in ThreeJS)
         velocity.x = gamma * 0.01; 
         velocity.z = beta * 0.01; 
         
-        // Cap max speed
         velocity.x = Math.max(Math.min(velocity.x, SPEED), -SPEED);
         velocity.z = Math.max(Math.min(velocity.z, SPEED), -SPEED);
     }
 
     function checkCollision(position, radius) {
-        // Create a bounding box for the next position
         const playerBox = new THREE.Box3();
         const min = new THREE.Vector3(position.x - radius, 0, position.z - radius);
         const max = new THREE.Vector3(position.x + radius, 10, position.z + radius);
@@ -222,33 +223,27 @@
         requestAnimationFrame(animate);
 
         if (isPlaying && pacman) {
-            // 1. Move Pacman X
+            // 1. Move Pacman
             let nextPos = pacman.position.clone();
             nextPos.x += velocity.x;
-            if (!checkCollision(nextPos, 3.5)) {
-                pacman.position.x = nextPos.x;
-            }
+            if (!checkCollision(nextPos, 3.5)) pacman.position.x = nextPos.x;
 
-            // 2. Move Pacman Z
             nextPos = pacman.position.clone();
             nextPos.z += velocity.z;
-            if (!checkCollision(nextPos, 3.5)) {
-                pacman.position.z = nextPos.z;
-            }
+            if (!checkCollision(nextPos, 3.5)) pacman.position.z = nextPos.z;
             
-            // Rotate Pacman to face direction
+            // Rotation
             if (Math.abs(velocity.x) > 0.01 || Math.abs(velocity.z) > 0.01) {
-                pacman.rotation.y = Math.atan2(-velocity.x, -velocity.z); // Face movement
-                pacman.rotation.z -= 0.1; // Rolling effect
+                pacman.rotation.y = Math.atan2(-velocity.x, -velocity.z);
+                pacman.rotation.z -= 0.1; 
             }
 
-            // 3. Move Ghosts (Simple AI: Random turns)
+            // 2. Move Ghosts
             ghosts.forEach(ghost => {
                 let gNext = ghost.position.clone().add(ghost.userData.dir.clone().multiplyScalar(ghost.userData.speed));
                 
-                // Simple wall bounce
                 if (checkCollision(gNext, 3)) {
-                    // Pick random new direction (X or Z axis)
+                    // Change direction on wall hit
                     const dirs = [
                         new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0),
                         new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)
@@ -258,13 +253,15 @@
                     ghost.position.copy(gNext);
                 }
 
-                // Game Over Check
+                // Check Death
                 if (ghost.position.distanceTo(pacman.position) < 6) {
-                    gameOver();
+                    if (!isInvincible) {
+                        gameOver();
+                    }
                 }
             });
 
-            // 4. Eat Pellets
+            // 3. Eat Pellets
             for (let i = pellets.length - 1; i >= 0; i--) {
                 if (pacman.position.distanceTo(pellets[i].position) < 4) {
                     scene.remove(pellets[i]);
@@ -275,16 +272,15 @@
                 }
             }
             
-            // Win Condition
             if (pellets.length === 0) {
                 alert("YOU WIN!");
                 isPlaying = false;
                 window.location.reload();
             }
 
-            // Camera Follow
+            // Camera Logic
             camera.position.x = pacman.position.x;
-            camera.position.z = pacman.position.z + 60; // Offset behind/above
+            camera.position.z = pacman.position.z + 60; 
             camera.lookAt(pacman.position);
         }
 
@@ -305,7 +301,7 @@
         window.location.reload();
     }
 
-    // --- AUDIO SYSTEM (Procedural Synthesis) ---
+    // --- AUDIO SYSTEM ---
     function initAudio() {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
@@ -320,7 +316,6 @@
         osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.1);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
@@ -336,7 +331,6 @@
         osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-        
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
@@ -345,29 +339,24 @@
 
     function startMusic() {
         if (!audioCtx) initAudio();
-        
-        // Simple Bassline Loop
         let note = 0;
         const baseFreq = 100;
-        const pattern = [1, 1, 1.5, 1.2]; // Frequency multipliers
+        const pattern = [1, 1, 1.5, 1.2]; 
 
         bgmInterval = setInterval(() => {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'square';
-            
             let freq = baseFreq * pattern[note % 4];
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            
             gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.4);
             note++;
-        }, 500); // 120 BPM-ish
+        }, 500);
     }
 
     function stopMusic() {
@@ -377,25 +366,19 @@
     // --- GAME START / PERMISSION ---
     const startBtn = document.getElementById('start-btn');
     startBtn.addEventListener('click', async () => {
-        // 1. Init Audio
         initAudio();
         audioCtx.resume();
         
-        // 2. Request Gyro Permissions (iOS specific)
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    startGame();
-                } else {
-                    alert('Permission needed to tilt-control!');
-                }
+                if (response === 'granted') startGame();
+                else alert('Permission needed to tilt-control!');
             } catch (e) {
                 console.error(e);
                 alert('Error requesting sensor permission');
             }
         } else {
-            // Android or non-iOS 13+ devices
             startGame();
         }
     });
@@ -404,16 +387,31 @@
         document.getElementById('overlay').style.display = 'none';
         isPlaying = true;
         
-        // Start Gyro listener
-        window.addEventListener('deviceorientation', handleOrientation);
+        // 1. Activate Invincibility
+        isInvincible = true;
+        const statusMsg = document.getElementById('status-msg');
+        statusMsg.innerText = "SAFE MODE (3s)";
         
-        // Start Music
+        // Blink visual
+        blinkInterval = setInterval(() => {
+            if (pacman) {
+                pacman.material.opacity = pacman.material.opacity === 1 ? 0.3 : 1;
+            }
+        }, 200);
+
+        // Turn off invincibility after 3 seconds
+        setTimeout(() => {
+            isInvincible = false;
+            clearInterval(blinkInterval);
+            if(pacman) pacman.material.opacity = 1;
+            statusMsg.innerText = "";
+        }, 3000);
+        
+        window.addEventListener('deviceorientation', handleOrientation);
         startMusic();
     }
 
-    // Init ThreeJS scene immediately
     init();
-
 </script>
 </body>
 </html>
