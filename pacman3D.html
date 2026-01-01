@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Pacman 3D - Bright & Fast</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050510; /* Dark Blue-Black background */
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            pointer-events: none;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .hud-text {
+            font-size: 28px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 10px #0ff;
+            margin: 0;
+        }
+        .sub-text {
+            font-size: 14px;
+            color: #ccc;
+            margin-top: 5px;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(20, 20, 30, 0.95);
+            border: 4px solid #0ff;
+            padding: 50px;
+            z-index: 20;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.4);
+            border-radius: 20px;
+            display: none;
+        }
+        h1 { margin: 0 0 10px 0; color: #ffeb3b; font-size: 48px; text-transform: uppercase; letter-spacing: 2px;}
+        button {
+            background: linear-gradient(to bottom, #00ffff, #00aaaa);
+            color: #000;
+            border: none;
+            padding: 15px 50px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 50px;
+            margin-top: 20px;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div class="hud-text">LEVEL <span id="level-display">1</span></div>
+        <div class="hud-text" style="color: #ffeb3b">SCORE <span id="score-display">0</span></div>
+        <div class="sub-text">ARROWS to Move</div>
+    </div>
+
+    <div id="game-over">
+        <h1 id="status-title">GAME OVER</h1>
+        <p id="final-score" style="font-size: 24px; color: #fff;">Score: 0</p>
+        <button id="restart-btn">PLAY AGAIN</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+        // --- GAME CONFIG ---
+        const TILE_SIZE = 10;
+        const MAP_SIZE = 15;
+        const BASE_SPEED = 40; // Units per second (Much faster)
+        
+        // --- STATE ---
+        let level = 1;
+        let score = 0;
+        let isGameOver = false;
+        let pellets = [];
+        let walls = [];
+        let ghosts = [];
+        
+        // --- ENGINE ---
+        let scene, camera, renderer, clock;
+        let player;
+        let playerDir = new THREE.Vector3(0,0,0);
+        let nextDir = new THREE.Vector3(0,0,0);
+
+        // 1 = Wall, 0 = Path
+        const RAW_MAP = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,1,0,1,1,1,1,0,1,1,1,1,0,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,0,1,1,1,1,0,1,1,1,1,0,1,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        init();
+
+        function init() {
+            // Setup Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a15); // Dark Blueish Black
+            scene.fog = new THREE.Fog(0x0a0a15, 40, 150); // Fog for depth
+
+            // Camera (Angled perfectly to see walls)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 110, 60); 
+            camera.lookAt(0, 0, 5);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            // --- LIGHTING (BRIGHTER) ---
+            // 1. Hemisphere Light (Sky vs Ground) - Creates base visibility
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+            scene.add(hemiLight);
+
+            // 2. Directional Light (Sun) - Creates shadows and definition
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            scene.add(dirLight);
+
+            // Clock for smooth movement
+            clock = new THREE.Clock();
+
+            // Listeners
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('resize', onResize);
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+            startLevel();
+            animate();
+        }
+
+        function startLevel() {
+            // Cleanup
+            pellets.forEach(p => scene.remove(p));
+            walls.forEach(w => scene.remove(w.mesh));
+            ghosts.forEach(g => scene.remove(g));
+            if(player) scene.remove(player);
+
+            pellets = [];
+            walls = [];
+            ghosts = [];
+
+            buildMap();
+            createPlayer();
+            spawnGhosts();
+
+            document.getElementById('level-display').innerText = level;
+            document.getElementById('game-over').style.display = 'none';
+            isGameOver = false;
+        }
+
+        function buildMap() {
+            // Materials
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00aaff, 
+                roughness: 0.2,
+                metalness: 0.8,
+                emissive: 0x0044aa, // GLOW
+                emissiveIntensity: 0.4
+            });
+
+            const pelletGeo = new THREE.SphereGeometry(1.2, 16, 16);
+            const pelletMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffd700,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.5
+            });
+
+            const offset = (MAP_SIZE * TILE_SIZE) / 2;
+
+            // Generate Grid
+            for (let row = 0; row < MAP_SIZE; row++) {
+                for (let col = 0; col < MAP_SIZE; col++) {
+                    const type = RAW_MAP[row][col];
+                    const x = (col * TILE_SIZE) - offset;
+                    const z = (row * TILE_SIZE) - offset;
+
+                    if (type === 1) {
+                        // Create Wall
+                        const h = TILE_SIZE; 
+                        const wallGeo = new THREE.BoxGeometry(TILE_SIZE, h, TILE_SIZE);
+                        const wall = new THREE.Mesh(wallGeo, wallMat);
+                        wall.position.set(x, h/2, z);
+                        scene.add(wall);
+                        
+                        // Physics Box
+                        const box = new THREE.Box3().setFromObject(wall);
+                        walls.push({ box, mesh: wall });
+                    } else {
+                        // Create Pellet
+                        if (Math.abs(x) > 5 || Math.abs(z) > 5) {
+                            const pellet = new THREE.Mesh(pelletGeo, pelletMat);
+                            pellet.position.set(x, 3, z);
+                            scene.add(pellet);
+                            pellets.push(pellet);
+                        }
+                    }
+                }
+            }
+
+            // Floor Grid (High Visibility)
+            const grid = new THREE.GridHelper(MAP_SIZE * TILE_SIZE, MAP_SIZE, 0x00ffff, 0x222222);
+            grid.position.y = 0.1;
+            scene.add(grid);
+            
+            // Solid Floor Plane
+            const plane = new THREE.Mesh(
+                new THREE.PlaneGeometry(500, 500),
+                new THREE.MeshBasicMaterial({ color: 0x050510 })
+            );
+            plane.rotation.x = -Math.PI / 2;
+            scene.add(plane);
+        }
+
+        function createPlayer() {
+            const geo = new THREE.SphereGeometry(3.5, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0xffff00, 
+                roughness: 0.1, 
+                metalness: 0.5,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.6
+            });
+            player = new THREE.Mesh(geo, mat);
+            player.position.set(0, 3.5, 0);
+            scene.add(player);
+            
+            playerDir.set(0,0,0);
+            nextDir.set(0,0,0);
+        }
+
+        function spawnGhosts() {
+            const count = Math.min(level + 1, 6);
+            const offset = (MAP_SIZE * TILE_SIZE) / 2;
+            const colors = [0xff0000, 0x00ff00, 0xff00ff, 0xff8800];
+
+            for(let i=0; i<count; i++) {
+                // Find spawn
+                let x, z, r, c;
+                do {
+                    r = Math.floor(Math.random() * MAP_SIZE);
+                    c = Math.floor(Math.random() * MAP_SIZE);
+                } while (RAW_MAP[r][c] === 1 || (r > 5 && r < 9)); // Valid & not center
+
+                x = (c * TILE_SIZE) - offset;
+                z = (r * TILE_SIZE) - offset;
+
+                const gGeo = new THREE.CapsuleGeometry(3, 4, 4, 8);
+                const color = colors[i % 4];
+                const gMat = new THREE.MeshStandardMaterial({ 
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.8
+                });
+                
+                const ghost = new THREE.Mesh(gGeo, gMat);
+                ghost.position.set(x, 4, z);
+                
+                ghost.userData = {
+                    dir: new THREE.Vector3(1,0,0),
+                    speed: (BASE_SPEED * 0.7) + (level * 5), // Ghosts get faster per level
+                    timer: 0
+                };
+                
+                scene.add(ghost);
+                ghosts.push(ghost);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(isGameOver) return;
+
+            const delta = Math.min(clock.getDelta(), 0.1); // Limit delta to prevent skipping
+            
+            // --- PLAYER MOVEMENT ---
+            const moveDist = BASE_SPEED * delta;
+            
+            // Try to change direction
+            if (nextDir.length() > 0) {
+                // We check a bit ahead to see if we can turn
+                if(canMove(player.position, nextDir, 1)) {
+                    // Center player on axis before turning (Snap to Grid)
+                    if(nextDir.x !== 0) player.position.z = Math.round(player.position.z / 10) * 10;
+                    if(nextDir.z !== 0) player.position.x = Math.round(player.position.x / 10) * 10;
+                    
+                    playerDir.copy(nextDir);
+                    nextDir.set(0,0,0);
+                }
+            }
+
+            if(playerDir.length() > 0 && canMove(player.position, playerDir, 1)) {
+                player.position.addScaledVector(playerDir, moveDist);
+            } else {
+                // Align to grid if stopped
+                player.position.x = Math.round(player.position.x);
+                player.position.z = Math.round(player.position.z);
+            }
+
+            // --- GHOST AI ---
+            ghosts.forEach(g => {
+                const gDist = g.userData.speed * delta;
+                
+                // Change Dir Logic
+                g.userData.timer += delta;
+                
+                // If hit wall or timer expires
+                if (!canMove(g.position, g.userData.dir, 2) || g.userData.timer > 2.0) {
+                    const dirs = [
+                        new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0),
+                        new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)
+                    ];
+                    
+                    // Filter valid directions
+                    const valid = dirs.filter(d => canMove(g.position, d, 2));
+                    
+                    if(valid.length > 0) {
+                        // Random valid direction
+                        g.userData.dir = valid[Math.floor(Math.random() * valid.length)];
+                        g.userData.timer = 0;
+                        
+                        // Snap ghost to grid to prevent getting stuck
+                        if(g.userData.dir.x !== 0) g.position.z = Math.round(g.position.z / 10) * 10;
+                        if(g.userData.dir.z !== 0) g.position.x = Math.round(g.position.x / 10) * 10;
+                    } else {
+                        g.userData.dir.negate(); // Dead end
+                    }
+                }
+                
+                g.position.addScaledVector(g.userData.dir, gDist);
+                
+                // Collision
+                if(g.position.distanceTo(player.position) < 5) {
+                    gameOver();
+                }
+            });
+
+            // --- PELLETS ---
+            for(let i = pellets.length-1; i>=0; i--) {
+                if(player.position.distanceTo(pellets[i].position) < 5) {
+                    scene.remove(pellets[i]);
+                    pellets.splice(i, 1);
+                    score += 10;
+                    document.getElementById('score-display').innerText = score;
+                    
+                    if(pellets.length === 0) {
+                        alert("LEVEL CLEARED!");
+                        level++;
+                        startLevel();
+                    }
+                }
+            }
+
+            // Camera Tracking
+            camera.position.x += (player.position.x - camera.position.x) * 5 * delta;
+            camera.position.z += (player.position.z + 50 - camera.position.z) * 5 * delta;
+            camera.lookAt(player.position.x, 0, player.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        function canMove(pos, dir, buffer) {
+            // Raycasting logic essentially
+            const testPos = pos.clone().addScaledVector(dir, (TILE_SIZE/2) + buffer);
+            const pBox = new THREE.Box3().setFromCenterAndSize(testPos, new THREE.Vector3(2,2,2));
+            
+            for(let w of walls) {
+                if(w.box.intersectsBox(pBox)) return false;
+            }
+            return true;
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            document.getElementById('game-over').style.display = 'block';
+            document.getElementById('final-score').innerText = "Final Score: " + score;
+        }
+
+        function restartGame() {
+            level = 1;
+            score = 0;
+            document.getElementById('score-display').innerText = 0;
+            startLevel();
+            animate();
+        }
+
+        function onKeyDown(e) {
+            switch(e.key) {
+                case 'ArrowUp': nextDir.set(0,0,-1); break;
+                case 'ArrowDown': nextDir.set(0,0,1); break;
+                case 'ArrowLeft': nextDir.set(-1,0,0); break;
+                case 'ArrowRight': nextDir.set(1,0,0); break;
+            }
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+    </script>
+</body>
+</html>
