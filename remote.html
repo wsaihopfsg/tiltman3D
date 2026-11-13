@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentation Voice Remote</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+            margin: 0;
+        }
+        input {
+            font-size: 24px;
+            text-align: center;
+            width: 140px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #334155;
+            background: #1e293b;
+            color: white;
+            letter-spacing: 4px;
+        }
+        button {
+            width: 100%;
+            max-width: 340px;
+            padding: 16px;
+            margin-top: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+        }
+        button.manual { background: #334155; text-align: left; }
+        button.clear { background: #991b1b; }
+        #status { margin: 14px 0; font-size: 14px; color: #94a3b8; }
+        #heard {
+            width: 100%;
+            max-width: 340px;
+            min-height: 44px;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #38bdf8;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Stage Mic & Remote</h2>
+    <input type="number" id="code-input" placeholder="0000" maxlength="4">
+    <button id="connect-btn">Connect & Start Mic</button>
+    <div id="status">Enter 4-digit code from laptop</div>
+    <div id="heard">Mic transcript will appear here...</div>
+
+    <!-- Manual Tap Fallbacks -->
+    <button class="manual" onclick="sendAction('name')">1. Morph Name (世浩 → 細號)</button>
+    <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
+    <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
+    <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
+    <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
+
+    <script>
+        let conn = null;
+        let isCooldown = false;
+        let isListening = false;
+
+        const peer = new Peer();
+        const statusEl = document.getElementById('status');
+        const heardEl = document.getElementById('heard');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-SG';
+
+        document.getElementById('connect-btn').addEventListener('click', () => {
+            const code = document.getElementById('code-input').value.trim();
+            if (code.length !== 4) {
+                statusEl.textContent = 'Please enter the 4-digit code.';
+                return;
+            }
+
+            statusEl.textContent = 'Connecting to laptop...';
+            conn = peer.connect(`shortness-talk-${code}`);
+
+            conn.on('open', () => {
+                statusEl.textContent = 'Connected & Listening!';
+                statusEl.style.color = '#4ade80';
+                isListening = true;
+                recognition.start();
+            });
+        });
+
+        function sendAction(action) {
+            if (conn && conn.open) {
+                conn.send({ action });
+            }
+        }
+
+        function triggerCooldown() {
+            isCooldown = true;
+            setTimeout(() => { isCooldown = false; }, 2000);
+        }
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            transcript = transcript.toLowerCase().trim();
+            heardEl.textContent = `"${transcript}"`;
+
+            if (isCooldown) return;
+
+            if (transcript.includes('cantonese') || transcript.includes('kantonese') || transcript.includes('small size')) {
+                sendAction('name');
+                triggerCooldown();
+            } else if (transcript.includes('brunei') || transcript.includes('aussie')) {
+                sendAction('aussie');
+                triggerCooldown();
+            } else if (transcript.includes('taiwan') || transcript.includes('saf') || transcript.includes('uniform')) {
+                sendAction('wave-static');
+                triggerCooldown();
+            } else if (transcript.includes('wave your hand')) {
+                sendAction('wave-play');
+                triggerCooldown();
+            } else if (transcript.includes('clear screen') || transcript.includes('hide visual')) {
+                sendAction('clear');
+                triggerCooldown();
+            }
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                try { recognition.start(); } catch (e) {}
+            }
+        };
+    </script>
+</body>
+</html>
