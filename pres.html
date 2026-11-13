@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shortness Presentation</title>
+	<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: 'Inter', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Subtle floating status pill in top-right corner */
+        #controls {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        #status {
+            font-size: 13px;
+            color: #888;
+            font-style: italic;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Borderless Stage */
+        #stage {
+            position: relative;
+            width: 90vw;
+            height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Smooth pop-in animation for every visual item */
+        .visual-item {
+            position: absolute;
+            max-width: 100%;
+            max-height: 100%;
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .visual-item.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        img.visual-item, video.visual-item {
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <span id="status">Mic off</span>
+        <button id="start-btn">Start Presentation</button>
+    </div>
+
+    <!-- Borderless Visual Stage -->
+    <div id="stage">
+        <!-- Visual 1: Cantonese Name Morph SVG -->
+        <img id="vis-name" class="visual-item" data-src="./pics/chinese-text-morph.svg" alt="世浩 to 細號" style="box-shadow: none;">
+
+        <!-- Visual 2: Aussie Soldier vs Child Soldier -->
+        <img id="vis-aussie" class="visual-item" src="./pics/aussie_child.jpg" alt="Aussie Goliath vs Child Soldier">
+
+        <!-- Visual 3: SAF Wave Video -->
+		<video id="vis-wave" class="visual-item" preload="auto" playsinline>
+			<source src="./pics/wave.mp4" type="video/mp4">
+		</video>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
