@@ -79,7 +79,12 @@
         const peer = new Peer();
         const statusEl = document.getElementById('status');
         const heardEl = document.getElementById('heard');
-
+        // ADD THIS BLOCK HERE:
+        peer.on('error', (err) => {
+            statusEl.textContent = `Peer Error: ${err.type}`;
+            statusEl.style.color = '#f87171';
+            console.error('PeerJS error:', err);
+        });
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         const FIXED_PEER_ID = 'wsaihopfsg-shortness-talk-2026';
