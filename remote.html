@@ -59,7 +59,7 @@
 <body>
 
     <h2>Stage Mic & Remote</h2>
-    <input type="number" id="code-input" placeholder="0000" maxlength="4">
+    
     <button id="connect-btn">Connect & Start Mic</button>
     <div id="status">Enter 4-digit code from laptop</div>
     <div id="heard">Mic transcript will appear here...</div>
@@ -82,19 +82,14 @@
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
+        const FIXED_PEER_ID = 'wsaihopfsg-shortness-talk-2026';
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-SG';
 
         document.getElementById('connect-btn').addEventListener('click', () => {
-            const code = document.getElementById('code-input').value.trim();
-            if (code.length !== 4) {
-                statusEl.textContent = 'Please enter the 4-digit code.';
-                return;
-            }
-
             statusEl.textContent = 'Connecting to laptop...';
-            conn = peer.connect(`shortness-talk-${code}`);
+            conn = peer.connect(FIXED_PEER_ID);
 
             conn.on('open', () => {
                 statusEl.textContent = 'Connected & Listening!';
@@ -103,7 +98,6 @@
                 recognition.start();
             });
         });
-
         function sendAction(action) {
             if (conn && conn.open) {
                 conn.send({ action });
