@@ -117,6 +117,7 @@
             
             <button class="manual" onclick="sendAction('name')">1. Morph Name (世浩 → 細號)</button>
             <button class="manual" onclick="sendAction('lkk')">2. Climb for LKK</button>
+            <button class="manual" onclick="sendAction('ntuc')">3. NTUC staff</button>
             <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
             <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
             <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
@@ -292,6 +293,9 @@ recognition.onresult = (event) => {
         triggerCooldown();
     } else if (transcriptClean.includes('stand on the lowest') || transcriptClean.includes('stand on lowest')) {
         sendAction('lkk');
+        triggerCooldown();
+    } else if (transcriptClean.includes('staff told me') || transcriptClean.includes('staffs told me')) {
+        sendAction('ntuc');
         triggerCooldown();
     } else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
         sendAction('aussie');
