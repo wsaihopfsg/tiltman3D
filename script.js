@@ -51,6 +51,8 @@ function handleCue(action) {
         showVisual('vis-lkk');
     } else if (action === 'ntuc') {
         showVisual('vis-ntuc');
+    } else if (action === 'walk') {
+        showVisual('vis-walk');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
