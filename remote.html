@@ -116,6 +116,7 @@
             <h2>Slide Controls</h2>
             
             <button class="manual" onclick="sendAction('name')">1. Morph Name (世浩 → 細號)</button>
+            <button class="manual" onclick="sendAction('lkk')">2. Climb for LKK</button>
             <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
             <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
             <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
@@ -286,8 +287,11 @@ recognition.onresult = (event) => {
 
     if (isCooldown) return;
 
-    if (transcriptClean.includes('cantonese') || transcriptClean.includes('kantonese') || transcriptClean.includes('small size')) {
+    if (transcriptClean.includes('sounds exactly like') || transcriptClean.includes('sound exactly like')) {
         sendAction('name');
+        triggerCooldown();
+    } else if (transcriptClean.includes('stand on the lowest') || transcriptClean.includes('stand on lowest')) {
+        sendAction('lkk');
         triggerCooldown();
     } else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
         sendAction('aussie');
