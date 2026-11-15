@@ -3,23 +3,41 @@ const statusText = document.getElementById('status');
 const visuals = document.querySelectorAll('.visual-item');
 const safVideo = document.getElementById('vis-wave');
 
-// Generate a simple 4-digit room ID for your phone to connect to
-const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
-const peer = new Peer(`shortness-talk-${roomCode}`);
+// The ID that the phone will be broadcasting from
+const FIXED_PHONE_ID = 'wsaihopfsg-shortness-talk-2026';
+
+// Let PeerJS generate a random, unique ID for this specific laptop
+const peer = new Peer(); 
 
 startBtn.style.display = 'none';
-statusText.textContent = `Phone Code: ${roomCode} (Waiting for phone...)`;
+statusText.textContent = 'Initializing...';
 statusText.style.color = '#2563eb';
-statusText.style.fontWeight = 'bold';
 
-// Listen for incoming connection from your S24 Ultra
-peer.on('connection', (conn) => {
-    statusText.textContent = `Connected to Phone (${roomCode})`;
-    statusText.style.color = '#16a34a';
+peer.on('error', (err) => {
+    statusText.textContent = `Peer Error: ${err.type}`;
+    statusText.style.color = '#dc2626';
+    console.error('PeerJS error:', err);
+});
+
+// Once this laptop gets its random ID, dial the phone
+peer.on('open', (id) => {
+    statusText.textContent = 'Connecting to Presenter...';
+    
+    const conn = peer.connect(FIXED_PHONE_ID);
+
+    conn.on('open', () => {
+        statusText.textContent = 'Connected to Presenter!';
+        statusText.style.color = '#16a34a';
+    });
 
     conn.on('data', (data) => {
         console.log('Received from phone:', data);
         handleCue(data.action);
+    });
+
+    conn.on('close', () => {
+        statusText.textContent = 'Presenter disconnected.';
+        statusText.style.color = '#dc2626';
     });
 });
 
@@ -73,3 +91,9 @@ if (safVideo) {
         safVideo.currentTime = 0;
     });
 }
+
+window.addEventListener('beforeunload', () => {
+    if (peer && !peer.destroyed) {
+        peer.destroy();
+    }
+});

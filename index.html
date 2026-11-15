@@ -2,454 +2,106 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Gyro Pacman - Portrait</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shortness Presentation</title>
+	<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
-        
-        /* Main UI Overlay */
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: #ffeb3b; z-index: 10;
-            text-align: center; padding: 20px;
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: 'Inter', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* Landscape Blocker */
-        #landscape-blocker {
-            display: none; /* Hidden by default */
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 20; color: white;
-            justify-content: center; align-items: center; text-align: center;
-            flex-direction: column;
+        /* Subtle floating status pill in top-right corner */
+        #controls {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        #status {
+            font-size: 13px;
+            color: #888;
+            font-style: italic;
         }
 
         button {
-            padding: 15px 30px; font-size: 1.2rem; background: #ffeb3b; border: none;
-            cursor: pointer; font-weight: bold; color: #000; border-radius: 5px; margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
         }
-        #score-board {
-            position: absolute; top: 15px; left: 15px; color: white;
-            font-size: 24px; z-index: 5; pointer-events: none; font-weight: bold;
+
+        /* Borderless Stage */
+        #stage {
+            position: relative;
+            width: 90vw;
+            height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #status-msg {
-            position: absolute; top: 60px; left: 15px; color: #00ff00;
-            font-size: 16px; z-index: 5; pointer-events: none; font-weight: bold;
+
+        /* Smooth pop-in animation for every visual item */
+        .visual-item {
+            position: absolute;
+            max-width: 100%;
+            max-height: 100%;
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
         }
-        #debug {
-            position: absolute; bottom: 15px; left: 0; width: 100%; color: #aaa;
-            font-size: 12px; z-index: 5; pointer-events: none; text-align: center;
+
+        .visual-item.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        img.visual-item, video.visual-item {
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
         }
     </style>
 </head>
 <body>
 
-<div id="score-board">Score: 0</div>
-<div id="status-msg"></div>
-<div id="debug">Hold Vertical | Tilt to Move</div>
+    <div id="controls">
+        <span id="status">Mic off</span>
+        <button id="start-btn">Start Presentation</button>
+    </div>
 
-<div id="overlay">
-    <h1>Pacman 3D</h1>
-    <p>PORTRAIT MODE ONLY</p>
-    <p style="font-size: 0.9em; color: #fff;">1. Hold phone vertically.<br>2. Tilt forward/back to move Up/Down.<br>3. Tilt left/right to move Left/Right.</p>
-    <button id="start-btn">TAP TO START</button>
-</div>
+    <!-- Borderless Visual Stage -->
+    <div id="stage">
+        <!-- Visual 1: Cantonese Name Morph SVG -->
+        <img id="vis-name" class="visual-item" data-src="./pics/chinese-text-morph.svg" alt="世浩 to 細號" style="box-shadow: none;">
 
-<div id="landscape-blocker">
-    <h1>Rotate Phone</h1>
-    <p>This game only works in Portrait mode.</p>
-    <div style="font-size: 30px;">↻</div>
-</div>
+        <!-- Visual 2: Aussie Soldier vs Child Soldier -->
+        <img id="vis-aussie" class="visual-item" src="./pics/aussie_child.jpg" alt="Aussie Goliath vs Child Soldier">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <!-- Visual 3: SAF Wave Video -->
+		<video id="vis-wave" class="visual-item" preload="auto" playsinline>
+			<source src="./pics/wave.mp4" type="video/mp4">
+		</video>
+    </div>
 
-<script>
-    // --- CONFIG ---
-    const WALL_SIZE = 10;
-    const SPEED = 0.6;
-    const PACMAN_HEIGHT = 4;
-    const PELLET_HEIGHT = 0;
-    
-    // --- GLOBALS ---
-    let scene, camera, renderer;
-    let pacman, ghosts = [], pellets = [], walls = [];
-    let score = 0;
-    let isPlaying = false;
-    let velocity = { x: 0, z: 0 };
-    
-    // Safety Invincibility
-    let isInvincible = false;
-    let blinkInterval;
-    
-    // Audio Context
-    let audioCtx;
-    let bgmInterval;
-
-    // 15x15 Grid
-    // 1=Wall, 0=Pellet, 2=Ghost, 3=Pacman, 9=Empty
-    const mapDesign = [
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,2,0,0,0,0,0,1,0,0,0,0,0,2,1],
-        [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
-        [1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
-        [1,0,0,0,0,0,0,9,0,0,0,0,0,0,1],
-        [1,1,1,0,1,0,1,0,1,0,1,0,1,1,1],
-        [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-        [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-        [1,0,0,0,0,0,0,3,0,0,0,0,0,0,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-    ];
-
-    function init() {
-        // Scene
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-
-        // Camera - Setup for Portrait (High FOV to see width)
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        // Renderer
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Lights
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(0, 100, 50);
-        scene.add(dirLight);
-
-        buildLevel();
-        
-        // Listeners
-        window.addEventListener('resize', onWindowResize, false);
-        window.addEventListener('keydown', handleDesktopInput); // Debugging
-        
-        // Check orientation immediately
-        checkOrientation();
-
-        animate();
-    }
-
-    function buildLevel() {
-        const wallGeo = new THREE.BoxGeometry(WALL_SIZE, WALL_SIZE, WALL_SIZE);
-        const wallMat = new THREE.MeshLambertMaterial({ color: 0x1919A6 });
-        
-        const pelletGeo = new THREE.SphereGeometry(2, 8, 8); // Bigger pellets
-        const pelletMat = new THREE.MeshBasicMaterial({ color: 0xffb8ae });
-
-        const ghostGeo = new THREE.CylinderGeometry(3, 3, 8, 16);
-        const ghostMat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-
-        const pacGeo = new THREE.SphereGeometry(4, 32, 32);
-        const pacMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b });
-
-        const offsetX = (mapDesign[0].length * WALL_SIZE) / 2;
-        const offsetZ = (mapDesign.length * WALL_SIZE) / 2;
-
-        for(let z = 0; z < mapDesign.length; z++) {
-            for(let x = 0; x < mapDesign[z].length; x++) {
-                const type = mapDesign[z][x];
-                const posX = (x * WALL_SIZE) - offsetX;
-                const posZ = (z * WALL_SIZE) - offsetZ;
-
-                if (type === 1) { // Wall
-                    const wall = new THREE.Mesh(wallGeo, wallMat);
-                    wall.position.set(posX, WALL_SIZE/2, posZ);
-                    scene.add(wall);
-                    walls.push(new THREE.Box3().setFromObject(wall));
-                } else if (type !== 9) {
-                    
-                    // Pellet (0, 2, 3 all have pellets underneath)
-                    if (type === 0 || type === 2 || type === 3) {
-                        const pellet = new THREE.Mesh(pelletGeo, pelletMat);
-                        pellet.position.set(posX, PELLET_HEIGHT, posZ);
-                        scene.add(pellet);
-                        pellets.push(pellet);
-                    }
-
-                    // Ghost
-                    if (type === 2) {
-                        const ghost = new THREE.Mesh(ghostGeo, ghostMat);
-                        ghost.position.set(posX, 4, posZ);
-                        ghost.userData = { dir: new THREE.Vector3(1,0,0), speed: 0.2 };
-                        scene.add(ghost);
-                        ghosts.push(ghost);
-                    }
-
-                    // Pacman
-                    if (type === 3) {
-                        pacman = new THREE.Mesh(pacGeo, pacMat);
-                        pacman.position.set(posX, PACMAN_HEIGHT, posZ);
-                        scene.add(pacman);
-                    }
-                }
-            }
-        }
-    }
-
-    // --- LOGIC ---
-
-    function handleOrientation(event) {
-        if (!isPlaying) return;
-        
-        // Portrait Mode:
-        // Gamma (Left/Right tilt) moves X
-        // Beta (Front/Back tilt) moves Z
-        
-        let gamma = event.gamma; 
-        let beta = event.beta;   
-        
-        // Neutral holding position for playing:
-        // Phone held at ~50 degrees from flat.
-        // Tilted Away (<50) -> Move Up (Z-)
-        // Tilted Toward (>50) -> Move Down (Z+)
-        const neutralBeta = 50; 
-        
-        let xInput = gamma; 
-        let zInput = beta - neutralBeta;
-
-        // Deadzones
-        if (Math.abs(xInput) < 5) xInput = 0;
-        if (Math.abs(zInput) < 5) zInput = 0;
-
-        velocity.x = xInput * 0.02; 
-        velocity.z = zInput * 0.02; 
-        
-        // Clamp speed
-        velocity.x = Math.max(Math.min(velocity.x, SPEED), -SPEED);
-        velocity.z = Math.max(Math.min(velocity.z, SPEED), -SPEED);
-    }
-
-    // Desktop Debugging
-    function handleDesktopInput(e) {
-        if(!isPlaying) return;
-        const force = 0.6;
-        if(e.key === 'ArrowUp') { velocity.z = -force; velocity.x = 0; }
-        if(e.key === 'ArrowDown') { velocity.z = force; velocity.x = 0; }
-        if(e.key === 'ArrowLeft') { velocity.x = -force; velocity.z = 0; }
-        if(e.key === 'ArrowRight') { velocity.x = force; velocity.z = 0; }
-        if(e.key === ' ') { velocity.x = 0; velocity.z = 0; } // Stop
-    }
-
-    function checkCollision(position, radius) {
-        const playerBox = new THREE.Box3();
-        const min = new THREE.Vector3(position.x - radius, 0, position.z - radius);
-        const max = new THREE.Vector3(position.x + radius, 10, position.z + radius);
-        playerBox.set(min, max);
-
-        for (let wallBox of walls) {
-            if (playerBox.intersectsBox(wallBox)) return true;
-        }
-        return false;
-    }
-
-    function animate() {
-        requestAnimationFrame(animate);
-
-        if (isPlaying && pacman) {
-            
-            // 1. Move Pacman
-            // Try X
-            let nextPos = pacman.position.clone();
-            nextPos.x += velocity.x;
-            if (!checkCollision(nextPos, 3.5)) pacman.position.x = nextPos.x;
-
-            // Try Z
-            nextPos = pacman.position.clone();
-            nextPos.z += velocity.z;
-            if (!checkCollision(nextPos, 3.5)) pacman.position.z = nextPos.z;
-
-            // NO AUTO ROTATION: We simply don't rotate the mesh here.
-            
-            // 2. Camera Follow (Top-down view)
-            // Camera stays behind (Z) and above (Y)
-            camera.position.x = pacman.position.x;
-            camera.position.z = pacman.position.z + 50; 
-            camera.position.y = 80; 
-            camera.lookAt(pacman.position.x, 0, pacman.position.z - 10); // Look slightly ahead
-
-            // 3. Move Ghosts
-            ghosts.forEach(ghost => {
-                let gNext = ghost.position.clone().add(ghost.userData.dir.clone().multiplyScalar(ghost.userData.speed));
-                if (checkCollision(gNext, 3)) {
-                    const dirs = [
-                        new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0),
-                        new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)
-                    ];
-                    ghost.userData.dir = dirs[Math.floor(Math.random()*dirs.length)];
-                } else {
-                    ghost.position.copy(gNext);
-                }
-                
-                // Ghost Hit
-                if (ghost.position.distanceTo(pacman.position) < 6) {
-                    if (!isInvincible) gameOver();
-                }
-            });
-
-            // 4. Eat Pellets (FIXED COLLISION LOGIC)
-            for (let i = pellets.length - 1; i >= 0; i--) {
-                // Distance includes Y difference (4 units). 
-                // We increase threshold to 8 to account for this vertical gap comfortably.
-                if (pacman.position.distanceTo(pellets[i].position) < 8) {
-                    scene.remove(pellets[i]);
-                    pellets.splice(i, 1);
-                    score += 10;
-                    document.getElementById('score-board').innerText = "Score: " + score;
-                    playWakaSound();
-                }
-            }
-
-            if (pellets.length === 0) {
-                alert("VICTORY!");
-                window.location.reload();
-            }
-        }
-
-        renderer.render(scene, camera);
-    }
-
-    function checkOrientation() {
-        const blocker = document.getElementById('landscape-blocker');
-        if (window.innerWidth > window.innerHeight) {
-            blocker.style.display = 'flex';
-            if(isPlaying) stopMusic();
-        } else {
-            blocker.style.display = 'none';
-        }
-    }
-
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        checkOrientation();
-    }
-
-    function gameOver() {
-        isPlaying = false;
-        stopMusic();
-        playDieSound();
-        alert("GAME OVER! Score: " + score);
-        window.location.reload();
-    }
-
-    // --- AUDIO ---
-    function initAudio() {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-    }
-
-    function playWakaSound() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    function playDieSound() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(500, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
-    }
-
-    function startMusic() {
-        if (!audioCtx) initAudio();
-        if (bgmInterval) clearInterval(bgmInterval);
-        
-        let note = 0;
-        const baseFreq = 120;
-        const pattern = [1, 1, 1.25, 1.5, 1.25, 1]; 
-
-        bgmInterval = setInterval(() => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'square';
-            let freq = baseFreq * pattern[note % pattern.length];
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-            note++;
-        }, 250);
-    }
-
-    function stopMusic() {
-        clearInterval(bgmInterval);
-    }
-
-    // --- STARTUP ---
-    const startBtn = document.getElementById('start-btn');
-    startBtn.addEventListener('click', async () => {
-        initAudio();
-        audioCtx.resume();
-        
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') startGame();
-                else alert('Gyro permission is required to play!');
-            } catch (e) {
-                alert('Error with Gyro permission');
-            }
-        } else {
-            startGame();
-        }
-    });
-
-    function startGame() {
-        if(window.innerWidth > window.innerHeight) {
-            alert("Please rotate to Portrait mode first.");
-            return;
-        }
-
-        document.getElementById('overlay').style.display = 'none';
-        isPlaying = true;
-        
-        // Invincibility
-        isInvincible = true;
-        const statusMsg = document.getElementById('status-msg');
-        statusMsg.innerText = "SAFE MODE (3s)";
-        
-        blinkInterval = setInterval(() => {
-            if (pacman) pacman.material.opacity = pacman.material.opacity === 1 ? 0.3 : 1;
-        }, 200);
-
-        setTimeout(() => {
-            isInvincible = false;
-            clearInterval(blinkInterval);
-            if(pacman) pacman.material.opacity = 1;
-            statusMsg.innerText = "";
-        }, 3000);
-        
-        window.addEventListener('deviceorientation', handleOrientation);
-        startMusic();
-    }
-
-    init();
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
