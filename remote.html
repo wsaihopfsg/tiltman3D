@@ -120,6 +120,7 @@
             <button class="manual" onclick="sendAction('ntuc')">3. NTUC staff</button>
             <button class="manual" onclick="sendAction('walk')">4. Walk Together</button>
             <button class="manual" onclick="sendAction('slouch')">5. Slouch</button>
+            <button class="manual" onclick="sendAction('low-wall')">6. Low Wall</button>
             <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
             <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
             <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
@@ -304,6 +305,9 @@ recognition.onresult = (event) => {
         triggerCooldown();
     } else if (transcriptClean.includes('slouched my back') || transcriptClean.includes('slouch my back')) {
         sendAction('slouch');
+        triggerCooldown();
+    } else if (transcriptClean.includes('low wall') || transcriptClean.includes('low wall')) {
+        sendAction('low-wall');
         triggerCooldown();
     } else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
         sendAction('aussie');
