@@ -47,6 +47,8 @@ function handleCue(action) {
         showVisual('vis-name');
     } else if (action === 'aussie') {
         showVisual('vis-aussie');
+    }  else if (action === 'lkk') {
+        showVisual('vis-lkk');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
