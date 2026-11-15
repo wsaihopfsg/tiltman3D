@@ -298,7 +298,7 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('staff told me') || transcriptClean.includes('stuff told me')) {
         sendAction('ntuc');
         triggerCooldown();
-    } else if (transcriptClean.includes('we walk together') || transcriptClean.includes('we walk together')) {
+    } else if (transcriptClean.includes('we walk together') || transcriptClean.includes('we work together')) {
         sendAction('walk');
         triggerCooldown();
     }else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
