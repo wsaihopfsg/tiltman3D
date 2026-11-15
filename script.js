@@ -55,6 +55,8 @@ function handleCue(action) {
         showVisual('vis-walk');
     } else if (action === 'slouch') {
         showVisual('vis-slouch');
+    } else if (action === 'low-wall') {
+        showVisual('vis-low-wall');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
