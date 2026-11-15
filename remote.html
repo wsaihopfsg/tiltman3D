@@ -1,4 +1,140 @@
-// --- UI Swipe Logic (Unchanged) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentation Voice Remote</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            overflow: hidden; /* Prevents whole-page scrolling, delegates to tabs */
+        }
+
+        /* Two-panel slider setup */
+        #slider {
+            display: flex;
+            width: 200vw;
+            /* Default to showing the Main page on the right */
+            transform: translateX(-100vw);
+            transition: transform 0.3s ease-out;
+            height: 100vh;
+        }
+
+        .page {
+            width: 100vw;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Page Layouts */
+        #page-controls { background: #1e293b; align-items: center; }
+        #page-main { background: #0f172a; align-items: center; }
+
+        h2 { margin-top: 0; }
+        .swipe-hint {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 15px;
+            font-style: italic;
+            text-align: center;
+        }
+
+        button {
+            width: 100%;
+            max-width: 340px;
+            padding: 16px;
+            margin-top: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        button.manual { background: #334155; text-align: left; }
+        button.clear { background: #991b1b; }
+        
+        #status { margin: 14px 0; font-size: 14px; color: #94a3b8; flex-shrink: 0; }
+        
+        #heard {
+            width: 100%;
+            max-width: 340px;
+            min-height: 44px;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #38bdf8;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            margin-bottom: 16px;
+        }
+
+        /* Teleprompter Script Area */
+        #script-container {
+            width: 100%;
+            max-width: 340px;
+            flex-grow: 1;
+            background: #000;
+            border-radius: 8px;
+            padding: 15px;
+            box-sizing: border-box;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .highlight {
+            background-color: #fbbf24;
+            color: #000;
+            border-radius: 3px;
+            padding: 0 2px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="slider">
+        <!-- LEFT TAB: Slide Transition Buttons -->
+        <div id="page-controls" class="page">
+            <div class="swipe-hint">&larr; Swipe Left to return to Main screen</div>
+            <h2>Slide Controls</h2>
+            
+            <button class="manual" onclick="sendAction('name')">1. Morph Name (世浩 → 細號)</button>
+            <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
+            <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
+            <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
+            <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
+        </div>
+
+        <!-- RIGHT TAB: Main Transcript & Teleprompter -->
+        <div id="page-main" class="page">
+            <div class="swipe-hint">Swipe Right &rarr; for Slide Controls</div>
+            <button id="connect-btn">Connect & Start Mic</button>
+            <div id="status">Tap Connect when laptop is ready</div>
+            
+            <div id="heard">Mic transcript will appear here...</div>
+            
+            <div id="script-container">Loading speech.txt...</div>
+        </div>
+    </div>
+
+    <script>// --- UI Swipe Logic (Unchanged) ---
 const slider = document.getElementById('slider');
 let touchstartX = 0;
 let touchendX = 0;
@@ -173,3 +309,6 @@ recognition.onend = () => {
         try { recognition.start(); } catch (e) {}
     }
 };
+    </script>
+</body>
+</html>
