@@ -119,6 +119,7 @@
             <button class="manual" onclick="sendAction('lkk')">2. Climb for LKK</button>
             <button class="manual" onclick="sendAction('ntuc')">3. NTUC staff</button>
             <button class="manual" onclick="sendAction('walk')">4. Walk Toegther</button>
+            <button class="manual" onclick="sendAction('slouch')">5. Slouch</button>
             <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
             <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
             <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
@@ -301,7 +302,10 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('we walk together') || transcriptClean.includes('we work together')) {
         sendAction('walk');
         triggerCooldown();
-    }else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
+    } else if (transcriptClean.includes('slouched my back') || transcriptClean.includes('slouch my back')) {
+        sendAction('slouch');
+        triggerCooldown();
+    } else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
         sendAction('aussie');
         triggerCooldown();
     } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('saf') || transcriptClean.includes('uniform')) {
