@@ -63,8 +63,6 @@ peer.on('open', (id) => {
 function handleCue(action) {
     if (action === 'name') {
         showVisual('vis-name');
-    } else if (action === 'aussie') {
-        showVisual('vis-aussie');
     } else if (action === 'lkk') {
         showVisual('vis-lkk');
     } else if (action === 'ntuc') {
@@ -75,6 +73,10 @@ function handleCue(action) {
         showVisual('vis-slouch');
     } else if (action === 'low-wall') {
         showVisual('vis-low-wall');
+    } else if (action === 'aussie') {
+        showVisual('vis-aussie');
+    } else if (action === '84') {
+        showVisual('vis-84');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
