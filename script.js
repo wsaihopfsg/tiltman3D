@@ -94,7 +94,7 @@ function handleCue(action) {
         }
     } else if (action === 'zoom') {
         if (zoomVideo && !zoomVideo.classList.contains('active')) {
-            showVisual('zoom');
+            showVisual('vis-zoom');
         }
         if (zoomVideo) {
             zoomVideo.currentTime = 0;
