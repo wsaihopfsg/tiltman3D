@@ -2,6 +2,7 @@ const startBtn = document.getElementById('start-btn');
 const statusText = document.getElementById('status');
 const visuals = document.querySelectorAll('.visual-item');
 const safVideo = document.getElementById('vis-wave');
+const zoomVideo = document.getElementById('zoom');
 
 // The ID that the phone will be broadcasting from
 const FIXED_PHONE_ID = 'wsaihopfsg-shortness-talk-2026';
@@ -90,6 +91,14 @@ function handleCue(action) {
         if (safVideo) {
             safVideo.currentTime = 0;
             safVideo.play().catch(err => console.error('Video play error:', err));
+        }
+    } else if (action === 'zoom') {
+        if (zoomVideo && !zoomVideo.classList.contains('active')) {
+            showVisual('zoom');
+        }
+        if (zoomVideo) {
+            zoomVideo.currentTime = 0;
+            zoomVideo.play().catch(err => console.error('Video play error:', err));
         }
     } else if (action === 'clear') {
         showVisual(null);
