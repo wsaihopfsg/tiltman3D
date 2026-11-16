@@ -121,7 +121,8 @@
             <button class="manual" onclick="sendAction('walk')">4. Walk Together</button>
             <button class="manual" onclick="sendAction('slouch')">5. Slouch</button>
             <button class="manual" onclick="sendAction('low-wall')">6. Low Wall</button>
-            <button class="manual" onclick="sendAction('aussie')">2. Aussie Soldier Comic</button>
+            <button class="manual" onclick="sendAction('aussie')">7. Aussie Soldier Comic</button>
+			<button class="manual" onclick="sendAction('aussie')">8. 84mm</button>
             <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
             <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
             <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
@@ -315,8 +316,11 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('low wall') || transcriptClean.includes('low wall')) {
         sendAction('low-wall');
         triggerCooldown();
-    } else if (transcriptClean.includes('brunei') || transcriptClean.includes('aussie')) {
+    } else if (transcriptClean.includes('wearing camouflage uniforms') || transcriptClean.includes('wearing camouflage uniform')) {
         sendAction('aussie');
+        triggerCooldown();
+    } else if (transcriptClean.includes('firing position') || transcriptClean.includes('firing positions') || transcriptClean.includes('fire position') || transcriptClean.includes('fire positions')) {
+        sendAction('84');
         triggerCooldown();
     } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('saf') || transcriptClean.includes('uniform')) {
         sendAction('wave-static');
