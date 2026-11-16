@@ -120,11 +120,11 @@
             <button class="manual" onclick="sendAction('ntuc')">3. NTUC staff</button>
             <button class="manual" onclick="sendAction('walk')">4. Walk Together</button>
             <button class="manual" onclick="sendAction('slouch')">5. Slouch</button>
-            <button class="manual" onclick="sendAction('low-wall')">6. Low Wall</button>
-            <button class="manual" onclick="sendAction('aussie')">7. Aussie Soldier Comic</button>
-			<button class="manual" onclick="sendAction('84')">8. 84mm</button>
-            <button class="manual" onclick="sendAction('wave-static')">3. SAF Video (Static Frame 0)</button>
-            <button class="manual" onclick="sendAction('wave-play')">4. SAF Video (Play Wave)</button>
+            <button class="manual" onclick="sendAction('wave-static')">6. SAF Video (Static Frame 0)</button>
+            <button class="manual" onclick="sendAction('wave-play')">7. SAF Video (Play Wave)</button>
+			<button class="manual" onclick="sendAction('low-wall')">8. Low Wall</button>
+            <button class="manual" onclick="sendAction('aussie')">9. Aussie Soldier Comic</button>
+			<button class="manual" onclick="sendAction('84')">10. 84mm</button>
             <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
         </div>
 
@@ -322,10 +322,10 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('firing position') || transcriptClean.includes('firing positions') || transcriptClean.includes('fire position') || transcriptClean.includes('fire positions')) {
         sendAction('84');
         triggerCooldown();
-    } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('saf') ) {
+    } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('tai wan') ) {
         sendAction('wave-static');
         triggerCooldown();
-    } else if (transcriptClean.includes('wave your hand')) {
+    } else if (transcriptClean.includes('wave your hand') || transcriptClean.includes('wave your hands')) {
         sendAction('wave-play');
         triggerCooldown();
     } else if (transcriptClean.includes('clear screen') || transcriptClean.includes('hide visual')) {
