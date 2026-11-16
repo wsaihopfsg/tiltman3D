@@ -322,7 +322,7 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('firing position') || transcriptClean.includes('firing positions') || transcriptClean.includes('fire position') || transcriptClean.includes('fire positions')) {
         sendAction('84');
         triggerCooldown();
-    } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('saf') || transcriptClean.includes('uniform')) {
+    } else if (transcriptClean.includes('taiwan') || transcriptClean.includes('saf') ) {
         sendAction('wave-static');
         triggerCooldown();
     } else if (transcriptClean.includes('wave your hand')) {
