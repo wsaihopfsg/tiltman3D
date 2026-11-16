@@ -2,7 +2,7 @@ const startBtn = document.getElementById('start-btn');
 const statusText = document.getElementById('status');
 const visuals = document.querySelectorAll('.visual-item');
 const safVideo = document.getElementById('vis-wave');
-const zoomVideo = document.getElementById('zoom');
+const zoomVideo = document.getElementById('vis-zoom');
 
 // The ID that the phone will be broadcasting from
 const FIXED_PHONE_ID = 'wsaihopfsg-shortness-talk-2026';
