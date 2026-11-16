@@ -288,6 +288,12 @@ recognition.onresult = (event) => {
     heardEl.textContent = `"${transcriptClean}"`;
 
     updateTeleprompterHighlight(transcriptClean);
+	// NEW: Broadcast the live transcript to all laptops
+    activeConnections.forEach(conn => {
+        if (conn.open) {
+            conn.send({ action: 'transcript', text: transcriptClean });
+        }
+    });
 
     if (isCooldown) return;
 

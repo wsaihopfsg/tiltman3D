@@ -30,10 +30,28 @@ peer.on('open', (id) => {
         statusText.style.color = '#16a34a';
     });
 
-    conn.on('data', (data) => {
-        console.log('Received from phone:', data);
+    const subtitlesEl = document.getElementById('subtitles');
+	let subtitleTimeout;
+
+// Update your existing conn.on('data') block to this:
+	conn.on('data', (data) => {
+    console.log('Received from phone:', data);
+    
+    if (data.action === 'transcript') {
+        // Show the live text
+        subtitlesEl.textContent = data.text;
+        subtitlesEl.style.display = 'block';
+        
+        // Hide subtitles after 4 seconds of silence
+        clearTimeout(subtitleTimeout);
+        subtitleTimeout = setTimeout(() => {
+            subtitlesEl.style.display = 'none';
+        }, 4000);
+    } else {
+        // Handle normal visual cues
         handleCue(data.action);
-    });
+    }
+});
 
     conn.on('close', () => {
         statusText.textContent = 'Presenter disconnected.';
