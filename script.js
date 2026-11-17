@@ -82,6 +82,8 @@ function handleCue(action) {
         showVisual('vis-pants-long');
     } else if (action === 'pants-ok') {
         showVisual('vis-pants-ok');
+    }  else if (action === 'funeral') {
+        showVisual('vis-funeral');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
