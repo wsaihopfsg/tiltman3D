@@ -82,8 +82,10 @@ function handleCue(action) {
         showVisual('vis-pants-long');
     } else if (action === 'pants-ok') {
         showVisual('vis-pants-ok');
-    }  else if (action === 'funeral') {
+    } else if (action === 'funeral') {
         showVisual('vis-funeral');
+    } else if (action === 'pallbearer') {
+        showVisual('vis-pallbearer');
     } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
