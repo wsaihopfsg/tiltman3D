@@ -253,7 +253,7 @@ function triggerCooldown() {
 }
 
 // --- Live Highlighter (Unchanged) ---
-function updateTeleprompterHighlight(transcriptText) {
+/*function updateTeleprompterHighlight(transcriptText) {
     if (!rawScript || transcriptText.length < 4) return;
     
     const words = transcriptText.trim().split(/\s+/);
@@ -275,8 +275,56 @@ function updateTeleprompterHighlight(transcriptText) {
     } catch (err) {
         // Ignore regex generation errors
     }
-}
+}*/
+// --- Live Highlighter (Forward-Only) ---
+let lastMatchIndex = 0; // Tracks your furthest position in the script
 
+function updateTeleprompterHighlight(transcriptText) {
+    if (!rawScript || transcriptText.length < 4) return;
+    
+    const words = transcriptText.trim().split(/\s+/);
+    // Grab the last 4 words spoken to search for
+    const searchPhrase = words.slice(-4).join(' ');
+    if (searchPhrase.length < 4) return;
+
+    const escapedWords = searchPhrase.split(' ').map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regexStr = escapedWords.join('[\\s\\W]+');
+    
+    try {
+        const regex = new RegExp(`(${regexStr})`, 'gi');
+        let match;
+        let validMatch = null;
+
+        // Loop through all matches of the phrase in the text
+        while ((match = regex.exec(rawScript)) !== null) {
+            // Only accept matches that occur AT or AFTER our last highlighted position
+            // (We subtract 30 characters as a tiny buffer in case the mic re-evaluates a word)
+            if (match.index >= Math.max(0, lastMatchIndex - 30)) {
+                validMatch = match;
+                break; // Stop at the first valid forward match
+            }
+        }
+
+        if (validMatch) {
+            // Update our tracker to this new forward position
+            lastMatchIndex = validMatch.index;
+
+            // Slice the raw script to inject the highlight only at this specific forward index
+            const before = rawScript.slice(0, validMatch.index);
+            const matchedString = rawScript.slice(validMatch.index, validMatch.index + validMatch[0].length);
+            const after = rawScript.slice(validMatch.index + validMatch[0].length);
+
+            scriptEl.innerHTML = before + '<span class="highlight">' + matchedString + '</span>' + after;
+            
+            const mark = scriptEl.querySelector('.highlight');
+            if (mark) {
+                mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    } catch (err) {
+        // Ignore regex generation errors
+    }
+}
 // --- Speech Recognition (Unchanged) ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
