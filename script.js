@@ -78,9 +78,11 @@ function handleCue(action) {
         showVisual('vis-aussie');
     } else if (action === '84') {
         showVisual('vis-84');
-    }  else if (action === 'pants-long') {
+    } else if (action === 'pants-long') {
         showVisual('vis-pants-long');
-    }else if (action === 'wave-static') {
+    } else if (action === 'pants-ok') {
+        showVisual('vis-pants-ok');
+    } else if (action === 'wave-static') {
         showVisual('vis-wave');
         if (safVideo) {
             safVideo.pause();
