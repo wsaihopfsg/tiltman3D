@@ -125,6 +125,7 @@
 			<button class="manual" onclick="sendAction('low-wall')">8. Low Wall</button>
             <button class="manual" onclick="sendAction('aussie')">9. Aussie Soldier Comic</button>
 			<button class="manual" onclick="sendAction('84')">10. 84mm</button>
+			<button class="manual" onclick="sendAction('pants-long')">11. Pants long</button>
 			<button class="manual" onclick="sendAction('zoom')">11. Zoom</button>
             <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
         </div>
@@ -328,6 +329,9 @@ recognition.onresult = (event) => {
         triggerCooldown();
     } else if (transcriptClean.includes('wave your hand') || transcriptClean.includes('wave your hands')) {
         sendAction('wave-play');
+        triggerCooldown();
+    } else if (transcriptClean.includes('fit my height') || transcriptClean.includes('fits my height')) {
+        sendAction('pants-long');
         triggerCooldown();
     } else if (transcriptClean.includes('legacy as the shortest') || transcriptClean.includes('legacy as the short')) {
         sendAction('zoom');
