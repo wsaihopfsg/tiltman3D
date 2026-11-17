@@ -393,7 +393,7 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('funeral service') || transcriptClean.includes('funeral services')) {
         sendAction('funeral');
         triggerCooldown();
-    } else if (transcriptClean.includes('weight distribution') || transcriptClean.includes('weights distribution') || transcriptClean.includes('weight distributions')) {
+    } else if (transcriptClean.includes('weight distribution') || transcriptClean.includes('weights distribution') || transcriptClean.includes('wait distribution')) {
         sendAction('pallbearer');
         triggerCooldown();
     } else if (transcriptClean.includes('clear screen') || transcriptClean.includes('hide visual')) {
