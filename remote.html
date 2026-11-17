@@ -331,7 +331,7 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('wave your hand') || transcriptClean.includes('wave your hands')) {
         sendAction('wave-play');
         triggerCooldown();
-    } else if (transcriptClean.includes('fit my height') || transcriptClean.includes('fits my height')) {
+    } else if (transcriptClean.includes('fit my height') || transcriptClean.includes('fits my height')|| transcriptClean.includes('feed my height')) {
         sendAction('pants-long');
         triggerCooldown();
     } else if (transcriptClean.includes('shorten my pants') || transcriptClean.includes('shorten my pant') || transcriptClean.includes('shortened my pants')) {
