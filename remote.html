@@ -127,7 +127,8 @@
 			<button class="manual" onclick="sendAction('84')">10. 84mm</button>
 			<button class="manual" onclick="sendAction('pants-long')">11. Pants long</button>
 			<button class="manual" onclick="sendAction('pants-ok')">12. Pants ok</button>
-			<button class="manual" onclick="sendAction('zoom')">11. Zoom</button>
+			<button class="manual" onclick="sendAction('zoom')">13. Zoom</button>
+			<button class="manual" onclick="sendAction('funeral')">14. Funeral</button>
             <button class="manual clear" onclick="sendAction('clear')">Clear Screen</button>
         </div>
 
@@ -340,7 +341,10 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('told my friends') || transcriptClean.includes('told my friend')) {
         sendAction('zoom');
         triggerCooldown();
-    } else if (transcriptClean.includes('clear screen') || transcriptClean.includes('hide visual')) {
+    } else if (transcriptClean.includes('funeral service') || transcriptClean.includes('funeral services')) {
+        sendAction('funeral');
+        triggerCooldown();
+    }else if (transcriptClean.includes('clear screen') || transcriptClean.includes('hide visual')) {
         sendAction('clear');
         triggerCooldown();
     }
