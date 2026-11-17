@@ -337,7 +337,7 @@ recognition.onresult = (event) => {
     } else if (transcriptClean.includes('shorten my pants') || transcriptClean.includes('shorten my pant') || transcriptClean.includes('shortened my pants')) {
         sendAction('pants-ok');
         triggerCooldown();
-    } else if (transcriptClean.includes('legacy as the shortest') || transcriptClean.includes('legacy as the short')) {
+    } else if (transcriptClean.includes('told my friends') || transcriptClean.includes('told my friend')) {
         sendAction('zoom');
         triggerCooldown();
     } else if (transcriptClean.includes('clear screen') || transcriptClean.includes('hide visual')) {
